@@ -1,9 +1,11 @@
 use core::fmt;
+
 use std::io::{self, Read};
 use std::net::UdpSocket;
 
 use macaddr::MacAddr6;
 
+#[derive(Debug)]
 pub struct MagicPacket {
     packet: Vec<u8>,
 }
@@ -29,12 +31,14 @@ impl MagicPacket {
 
 impl fmt::Display for MagicPacket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let address = self.packet[6..11]
+        let address_bytes = &self.packet[6..12];
+        let mut address = address_bytes
             .bytes()
             .map(|x| x.unwrap())
-            .map(|x| x.to_string())
-            .fold(String::from(""), |acc: String, e: String| acc + "-" + &e);
+            .map(|x| format!("{:02X?}", x))
+            .fold(String::from(""), |acc, e| acc + "-" + &e);
 
+        address.remove(0);
         write!(f, "{}", address)
     }
 }
@@ -44,7 +48,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
-        todo!()
+    fn address_format_check() {
+        let address = MacAddr6::new(0x01, 0x23, 0x45, 0x67, 0x89, 0xAB);
+        let packet = MagicPacket::from_mac(address);
+
+        assert_eq!(packet.to_string(), "01-23-45-67-89-AB");
+    }
+
+    #[test]
+    fn address_format_check_nil() {
+        let address = MacAddr6::nil();
+        let packet = MagicPacket::from_mac(address);
+
+        assert_eq!(packet.to_string(), "00-00-00-00-00-00");
+    }
+
+    #[test]
+    fn address_format_check_broadcast() {
+        let address = MacAddr6::broadcast();
+        let packet = MagicPacket::from_mac(address);
+
+        assert_eq!(packet.to_string(), "FF-FF-FF-FF-FF-FF");
     }
 }
